@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TuitionVault — Interactive Web Simulator & DB Explorer</title>
+  <!-- Global CSS Design System -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 1. Top Control Header -->
+  <header class="app-header">
+    <div class="logo-container">
+      <div class="logo-icon">TV</div>
+      <div class="logo-text">TuitionVault</div>
+      <span class="badge badge-role-teacher" id="session-indicator" style="margin-left: 12px; font-size: 11px;">
+        Session: Amit Sharma (Teacher)
+      </span>
+    </div>
+    
+    <div class="header-controls">
+      <div style="font-size: 12px; color: var(--text-secondary); font-weight: 500;">
+        Interactive Mobile Simulator & Live Supabase Data
+      </div>
+      <button class="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" id="theme-icon">
+          <!-- Light Mode Icon (Sun) as default -->
+          <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Responsive Pane Toggle Tabs (Only visible on Mobile/Tablet viewports) -->
+  <div class="mobile-pane-tabs">
+    <button class="pane-tab active" id="pane-tab-simulator" onclick="switchPane('simulator')">
+      📱 App Simulator
+    </button>
+    <button class="pane-tab" id="pane-tab-explorer" onclick="switchPane('explorer')">
+      ⚡ DB Tables & Logs
+    </button>
+  </div>
+
+  <!-- 2. Dual Pane Workspace -->
+  <main class="dashboard-wrapper">
+
+    <!-- A. Center-Left Phone Screen Emulator -->
+    <section class="simulator-pane">
+      <div class="phone-frame">
+        <!-- Phone Notch (Receiver Speaker) -->
+        <div class="phone-notch">
+          <div class="notch-speaker"></div>
+        </div>
+
+        <div class="phone-screen">
+          <!-- Software Status Bar -->
+          <div class="phone-status-bar">
+            <div class="status-left" id="live-phone-time">14:36</div>
+            <div class="status-right">
+              <span>5G</span>
+              <div class="signal-bar">
+                <div class="signal-dot"></div>
+                <div class="signal-dot"></div>
+                <div class="signal-dot"></div>
+                <div class="signal-dot"></div>
+              </div>
+              <span style="font-size: 13px; line-height: 1;">🔋</span>
+            </div>
+          </div>
+
+          <!-- Toast Alert Containers -->
+          <div class="toast-container" id="phone-toast-container"></div>
+
+          <!-- Phone Inner View Router Target -->
+          <div class="screen-container" id="phone-screen-content">
+            <!-- Screen Content will be loaded dynamically via renderScreen() -->
+          </div>
+
+          <!-- Virtual bottom Home line -->
+          <div class="phone-home-indicator">
+            <div class="home-line"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- B. Right Side Live PostgreSQL Tabular Explorer -->
+    <section class="explorer-pane">
+      <div class="explorer-header">
+        <h2 class="explorer-title">
+          <span>⚡</span> Live Supabase (PostgreSQL) Tables
+        </h2>
+        <div style="font-size:11px; color: var(--text-muted); font-weight: 500;">
+          State-synchronized database logs
+        </div>
+      </div>
+
+      <!-- Database Tabs Navigation -->
+      <div class="explorer-tabs">
+        <button class="explorer-tab-btn active" id="tab-profiles" onclick="switchDbTab('profiles')">
+          profiles (Table)
+        </button>
+        <button class="explorer-tab-btn" id="tab-students" onclick="switchDbTab('students')">
+          students (Table)
+        </button>
+        <button class="explorer-tab-btn" id="tab-fee_structures" onclick="switchDbTab('fee_structures')">
+          fee_structures (Table)
+        </button>
+        <button class="explorer-tab-btn" id="tab-payments" onclick="switchDbTab('payments')">
+          payments (Table)
+        </button>
+        <button class="explorer-tab-btn" id="tab-reminders" onclick="switchDbTab('reminders')">
+          reminders (Table)
+        </button>
+      </div>
+
+      <!-- Live Rows Viewer Pane -->
+      <div class="explorer-content" id="db-explorer-rows">
+        <!-- Tables are injected by app.js syncExplorer() -->
+      </div>
+
+      <!-- Dev Fast Bypass Actions (Change simulated roles directly) -->
+      <div class="dev-controls">
+        <div class="control-title">Simulate Client Roles Bypass (Supabase Auth Session)</div>
+        <button class="btn-dev btn-dev-primary" onclick="setDeveloperSession('teacher')">
+          🔑 Login Teacher (Amit Sharma)
+        </button>
+        <button class="btn-dev" onclick="setDeveloperSession('student')">
+          🎓 Login Student (Rahul Singh)
+        </button>
+        <button class="btn-dev" onclick="setDeveloperSession('super_admin')">
+          🛡️ Login Super Admin
+        </button>
+        <button class="btn-dev" style="border-color: var(--brand-danger); color: var(--brand-danger);" onclick="setDeveloperSession('logged_out')">
+          ✕ Reset Session (Guest)
+        </button>
+        <button class="btn-dev" style="background-color: var(--bg-tertiary);" onclick="resetDatabaseDemo()" title="Refreshes all rows to prefilled test data">
+          🔄 Refresh Test Data
+        </button>
+      </div>
+
+      <!-- Simulated Message Trigger Logs (SMS / WhatsApp notifications received by students) -->
+      <div class="explorer-content" style="flex:0.6; border-top:1px solid var(--border-default); background-color: var(--bg-secondary); padding: 12px 16px;">
+        <div class="notification-log-panel">
+          <div class="notification-log-header">
+            <span>📱 Real-time Student Message Receivers Feed</span>
+            <span style="font-size:10px; font-weight:normal; color:var(--text-muted);">Triggers dynamically on scheduled reminders</span>
+          </div>
+          <div class="notification-items" id="notification-logs-drawer">
+            <!-- Dispatched reminder logs injected dynamically -->
+            <div class="notification-item" style="color:var(--text-muted); text-align:center; padding: 20px; font-style:italic;">
+              Dispatched SMS / WhatsApp alerts will stream here in real time...
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Live Supabase SDK Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Live Supabase Integration Setup -->
+  <script src="supabase.js"></script>
+  <!-- Global Application Engine Logic -->
+  <script src="app.js"></script>
+  
+  <script>
+    // 1. Mobile pane switching control
+    function switchPane(pane) {
+      const simPane = document.querySelector('.simulator-pane');
+      const expPane = document.querySelector('.explorer-pane');
+      const simTab = document.getElementById('pane-tab-simulator');
+      const expTab = document.getElementById('pane-tab-explorer');
+      
+      if (!simPane || !expPane || !simTab || !expTab) return;
+      
+      if (pane === 'simulator') {
+        simPane.classList.add('mobile-visible');
+        expPane.classList.remove('mobile-visible');
+        simTab.classList.add('active');
+        expTab.classList.remove('active');
+      } else {
+        simPane.classList.remove('mobile-visible');
+        expPane.classList.add('mobile-visible');
+        simTab.classList.remove('active');
+        expTab.classList.add('active');
+      }
+    }
+
+    // 2. Initial startup sync
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set Amit Sharma as default logged in teacher session for direct demo
+      state.currentUser = DB.profiles.find(p => p.id === 't1');
+      
+      // Update phone digital clock status
+      updatePhoneClock();
+      setInterval(updatePhoneClock, 60000);
+      
+      // Initialize mobile layout view if needed
+      if (window.innerWidth <= 950) {
+        switchPane('simulator');
+      }
+      
+      // Render initial target screen
+      renderScreen();
+    });
+
+    // Auto switch pane states on window resize
+    window.addEventListener('resize', () => {
+      const simPane = document.querySelector('.simulator-pane');
+      const expPane = document.querySelector('.explorer-pane');
+      if (window.innerWidth <= 950) {
+        if (simPane && !simPane.classList.contains('mobile-visible') && expPane && !expPane.classList.contains('mobile-visible')) {
+          switchPane('simulator');
+        }
+      } else {
+        // Reset classes for desktop
+        if (simPane) simPane.classList.remove('mobile-visible');
+        if (expPane) expPane.classList.remove('mobile-visible');
+      }
+    });
+
+    // Clock update routine
+    function updatePhoneClock() {
+      const now = new Date();
+      let hrs = now.getHours();
+      let mins = now.getMinutes();
+      
+      // Pad single digits
+      hrs = hrs < 10 ? '0' + hrs : hrs;
+      mins = mins < 10 ? '0' + mins : mins;
+      
+      const clock = document.getElementById('live-phone-time');
+      if (clock) clock.textContent = `${hrs}:${mins}`;
+    }
+
+    // DB Explorer Tab switching
+    function switchDbTab(tabName) {
+      state.activeExplorerTab = tabName;
+      
+      // Update active header chip style
+      const tabs = ['profiles', 'students', 'fee_structures', 'payments', 'reminders'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        if (btn) {
+          if (t === tabName) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+      });
+
+      syncExplorer();
+    }
+
+    // Light/Dark global theme switcher
+    function toggleTheme() {
+      const html = document.documentElement;
+      const themeIcon = document.getElementById('theme-icon');
+      
+      if (html.getAttribute('data-theme') === 'light') {
+        html.setAttribute('data-theme', 'dark');
+        // Render Sun Moon icon
+        themeIcon.innerHTML = `<path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.38 5.38 0 0 1-4.4 2.26 5.4 5.4 0 0 1-4.14-7.5C12.3 3.04 12.15 3 12 3z"/>`;
+        showToast("Dark Mode activated", "success");
+      } else {
+        html.setAttribute('data-theme', 'light');
+        // Render Sun Icon
+        themeIcon.innerHTML = `<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>`;
+        showToast("Light Mode activated", "success");
+      }
+    }
+  </script>
+</body>
+</html>
